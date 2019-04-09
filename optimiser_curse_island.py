@@ -153,9 +153,12 @@ class IslandInvasives:
         if self.estimates is None:
             if self.islands is None:
                 raise RuntimeError("generate_islands must be called before generate estimtes")
-            #generate estimates with a normal distribution with zero bias
-            # estimates = self.islands*np.random.normal(np.ones(self.islands.shape), self.estimation_variance)
-            estimates = self.islands*2*np.random.beta(1/self.estimation_variance, 1/self.estimation_variance, self.islands.shape) #todo fix this variance estimate...
+            #generate estimates with a beta distribution with parameters Beta(a,a)
+            #Variance of beta distribution is 1/(4+8a), so a = (1-4var)/(8var). Variance must be less than 0.25
+            #However, the beta distribution is 'doubled' to have support [0,2], so thaat also doubles the varaiaacnes
+            #Hence, variance must be halved at this calculate -> input variance can be up to 0.5
+            a = (1-2*self.estimation_variance)/(4*self.estimation_variance)
+            estimates = self.islands*2*np.random.beta(a, a, self.islands.shape)
             estimates[estimates<0] = 0 #all estimtes must be positive
             estimates[2,:] = estimates[1,:]/estimates[0,:] #store a 3rd row, the benefit/cost of each island
             self.estimates = estimates
@@ -199,6 +202,14 @@ class IslandInvasives:
         if key is 'num_islands':
             if not isinstance(value, int):
                 raise TypeError("num_islands must be an integer")
+        try:
+            if key is 'estimation_variance':
+                if (value <= 0) or (value >= 0.25):
+                    raise ValueError("estimation_variance must be between 0 and 0.25. "
+                                     "The input value of {} is outside this".format(value))
+        except TypeError:
+            raise TypeError("estimation_variance must be a number between 0 and 0.25. "
+                            "An input of type {} was supplied".format(type(value)))
         self.__dict__[key] = value
         return
 
