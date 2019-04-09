@@ -3,8 +3,12 @@ import time
 import copy
 import matplotlib.pyplot as plt
 import pandas as pd
+from functools import lru_cache
+
+
 class IslandInvasives:
-    def __init__(self, num_islands, budget = 200, cost_average = 50, cost_variance = 40, value_variance = .1, estimation_variance = .2):
+    def __init__(self, num_islands, budget = 200., cost_average = 50., cost_variance = 40.,
+                 value_variance = .1, estimation_variance = .2):
         self.num_islands = num_islands
         self.island_list = list(range(self.num_islands))
 
@@ -193,9 +197,29 @@ class IslandInvasives:
         return np.random.uniform(a, b, num)
 
 
+    def generate_lognormal(self, num, mean, variance):
+        mu, sigma = self.lognormal_parameters(mean, variance)
+        return np.exp(np.random.normal(mu, sigma, num))
+
+
     @staticmethod
-    def generate_lognormal(num, mean, variance):
-        return np.exp(np.random.normal(mean, variance, num))
+    @lru_cache()
+    def lognormal_parameters(mean, variance):
+        #I couldn't find an equation for mu and sigma as a function of
+        #mean and variance for the lognormal distribution
+        #this uses fixed point iteration
+        mu = np.log(mean) #initial guess of mu
+        sigma = None
+        flag = 0
+        while flag == 0:
+            sigma = np.sqrt(np.log(0.5 * (1 + np.sqrt(1 + 4 * variance * np.exp(-2 * mu))))) #true sigma, given current mu
+            prev_mu = copy.copy(mu)
+            mu = np.log(mean) - (sigma ** 2) / 2 #update mu.
+            if np.abs(prev_mu - mu) < .001:
+                flag = 1
+            if np.abs(mu) > 1e6:
+                raise Exception
+        return mu, sigma
 
 
     def __setattr__(self, key, value):
@@ -214,8 +238,8 @@ class IslandInvasives:
         return
 
 class IslandInvasivesEnsemble:
-    def __init__(self, num_realisations, num_islands, budget = 200,
-                 cost_average = 50, cost_variance = 40,
+    def __init__(self, num_realisations, num_islands, budget = 200.,
+                 cost_average = 50., cost_variance = 40.,
                  value_variance = .1, estimation_variance = .2,
                  seed = 3784123):
 
@@ -230,6 +254,8 @@ class IslandInvasivesEnsemble:
         self.ensemble = None
 
         np.random.seed(seed)
+
+        self.analysis_complete = False
 
         self.random_expected_cost = None
         self.random_expected_value = None
@@ -256,11 +282,17 @@ class IslandInvasivesEnsemble:
             for island in ensemble:
                 island.run_prioritisation()
             self.ensemble = ensemble
+            return ensemble
+        return self.ensemble
+
+    def run_analysis(self):
+        if not self.analysis_complete:
             self.store_costben_result()
             self.store_optimal_result()
             self.store_random_result()
-            return ensemble
-        return self.ensemble
+            self.analysis_complete = True
+        return
+
 
     def store_random_result(self):
         random_choices = [realisation.random_choice for realisation in self.ensemble]
@@ -277,7 +309,6 @@ class IslandInvasivesEnsemble:
         self.optimal_expected_cost, self.optimal_expected_value, self.optimal_true_cost, self.optimal_true_value = self.return_cost_value(optimal_choices)
 
 
-
     def return_cost_value(self, choice):
         expected_cost = [r.expected_cost(c) for r, c in zip(self.ensemble, choice)]
         expected_value = [r.expected_value(c) for r, c in zip(self.ensemble, choice)]
@@ -289,6 +320,8 @@ class IslandInvasivesEnsemble:
     def _create_plot(self):
         if self.ensemble is None:
             self.generate_ensemble()
+        if not self.analysis_complete:
+            self.run_analysis()
         plt.subplot(231)
         self.scatter_plot(self.random_true_value, self.random_expected_value)
         plt.title('Random')
@@ -325,6 +358,8 @@ class IslandInvasivesEnsemble:
         plt.savefig('plot_{}.png'.format(fname))
 
     def save_data(self, fname = None):
+        if not self.analysis_complete:
+            self.run_analysis()
         if fname is None:
             fname = self.parameter_name()
         data = {'random_expected_cost': self.random_expected_cost,
@@ -365,12 +400,13 @@ class IslandInvasivesEnsemble:
         plt.ylim([0,max_value])
 
 if  __name__ == "__main__":
-    ensemble = IslandInvasivesEnsemble(num_realisations=2000,num_islands=50,estimation_variance=.25,
+    ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,estimation_variance=.05,
                                        budget=10, cost_average=1, cost_variance=.25)
     ensemble.generate_ensemble()
     # ensemble.show_results_plot()
-    ensemble.save_data()
-    ensemble.save_plot()
+    print(np.mean(ensemble.ensemble[0].islands[0]))
+    # ensemble.save_data()
+    # ensemble.save_plot()
 
     # tstart = time.time()
     # for i in range(100):
