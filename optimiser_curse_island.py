@@ -369,6 +369,7 @@ class IslandInvasivesEnsemble:
         if fname is None:
             fname = self.parameter_name()
         plt.savefig('plot_{}.png'.format(fname))
+        plt.close()
 
     def save_data(self, fname = None):
         if not self.analysis_complete:
@@ -421,23 +422,51 @@ def plot_histogram_estimation_variance(var=0.01):
     return
 
 
+def run_multiple_uncertainty(num_realisations=200,num_islands=50,
+                                       estimation_variance_list = (.02, .01), budget=5e6,
+                                       cost_ave = 7e5, cost_var = 1e11):
+    for var in estimation_variance_list:
+        print("Running estimation_variance = {}".format(var))
+        ensemble = IslandInvasivesEnsemble(num_realisations, num_islands,
+                                           estimation_variance=var, budget=budget,
+                                           cost_average=cost_ave, cost_variance=cost_var)
+        ensemble.generate_ensemble()
+        ensemble.save_data()
+        ensemble.save_plot()
+    pass
+
 
 if  __name__ == "__main__":
     # cost parameters - this produces costs between approx 250k and 1.5mil
     cost_average = 7e5
     cost_variance = 1e11
+    budget = 5e6
 
-    estimation_variance = 0.05
+    estimation_variance_list = [.05, .04,.03,.02,.01,.005,.001]
 
-    plot_histogram_estimation_variance(estimation_variance)
+    run_multiple_uncertainty(num_realisations=5000, num_islands=150,
+                             estimation_variance_list=estimation_variance_list,
+                             budget=budget, cost_ave=cost_average, cost_var=cost_variance)
 
-    ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,
-                                       estimation_variance=estimation_variance, budget=5e6,
-                                       cost_average=cost_average, cost_variance=cost_variance)
-    ensemble.generate_ensemble()
-    ensemble.show_results_plot()
+
+
+    #
+    # estimation_variance = 0.02
+    # plot_histogram_estimation_variance(estimation_variance)
+    #
+    # ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,
+    #                                    estimation_variance=estimation_variance, budget=5e6,
+    #                                    cost_average=cost_average, cost_variance=cost_variance)
+    # ensemble.generate_ensemble()
+    # ensemble.show_results_plot()
     # ensemble.save_data()
     # ensemble.save_plot()
+
+
+
+
+
+
 
     # tstart = time.time()
     # for i in range(100):
