@@ -368,7 +368,7 @@ class IslandInvasivesEnsemble:
         self._create_plot()
         if fname is None:
             fname = self.parameter_name()
-        plt.savefig('plot_{}.png'.format(fname))
+        plt.savefig('results/plot_{}.png'.format(fname))
         plt.close()
 
     def save_data(self, fname = None):
@@ -389,7 +389,7 @@ class IslandInvasivesEnsemble:
                 'optimal_expected_value': self.optimal_expected_value,
                 'optimal_true_value': self.optimal_true_value}
         df = pd.DataFrame(data)
-        df.to_csv('data_{}.csv'.format(fname))
+        df.to_csv('results/data_{}.csv'.format(fname))
 
     def parameter_name(self):
         return "num_reps{}_num_isl{}_estvar{}_budget{}_cost{}_var{}".format(
