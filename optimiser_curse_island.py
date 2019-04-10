@@ -157,18 +157,30 @@ class IslandInvasives:
         if self.estimates is None:
             if self.islands is None:
                 raise RuntimeError("generate_islands must be called before generate estimtes")
-            #generate estimates with a beta distribution with parameters Beta(a,a)
-            #Variance of beta distribution is 1/(4+8a), so a = (1-4var)/(8var). Variance must be less than 0.25
-            #However, the beta distribution is 'doubled' to have support [0,2], so thaat also doubles the varaiaacnes
-            #Hence, variance must be halved at this calculate -> input variance can be up to 0.5
-            a = (1-2*self.estimation_variance)/(4*self.estimation_variance)
-            estimates = self.islands*2*np.random.beta(a, a, self.islands.shape)
+
+            estimates = self.islands*self.beta_estimate_draws(self.islands.shape)
             if (estimates <= 0).any():
                 raise ValueError('All value/cost estimates must be positive')
             estimates[2,:] = estimates[1,:]/estimates[0,:] #store a 3rd row, the benefit/cost of each island
             self.estimates = estimates
         return
 
+
+    #generate estimates with a beta distribution with parameters Beta(a,a)
+    #Variance of beta distribution is 1/(4+8a), so a = (1-4var)/(8var). Variance must be less than 0.25
+    #However, the beta distribution is 'doubled' to have support [0,2], so thaat also doubles the varaiaacnes
+    #Hence, variance must be halved at this calculate -> input variance can be up to 0.5
+    def beta_estimate_draws(self, num):
+        a = self.beta_parameters(self.estimation_variance)
+        return 2*np.random.beta(a, a, num)
+
+
+    @staticmethod
+    @lru_cache()
+    def beta_parameters(var):
+        if var*2 >= 1:
+            raise ValueError("Variance is too large for the beta distribution")
+        return (1-2*var)/(4*var)
 
 
 
@@ -400,13 +412,28 @@ class IslandInvasivesEnsemble:
         plt.xlim([0,max_value])
         plt.ylim([0,max_value])
 
+
+def plot_histogram_estimation_variance(var=0.01):
+    draws = IslandInvasives(4, estimation_variance=var).beta_estimate_draws(50000)
+    print(2*np.std(draws))
+    plt.hist(draws)
+    plt.show()
+    return
+
+
+
 if  __name__ == "__main__":
     # cost parameters - this produces costs between approx 250k and 1.5mil
     cost_average = 7e5
     cost_variance = 1e11
 
-    ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,estimation_variance=.05,
-                                       budget=5e6, cost_average=cost_average, cost_variance=cost_variance)
+    estimation_variance = 0.05
+
+    plot_histogram_estimation_variance(estimation_variance)
+
+    ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,
+                                       estimation_variance=estimation_variance, budget=5e6,
+                                       cost_average=cost_average, cost_variance=cost_variance)
     ensemble.generate_ensemble()
     ensemble.show_results_plot()
     # ensemble.save_data()
