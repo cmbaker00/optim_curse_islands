@@ -14,11 +14,11 @@ class IslandInvasives:
 
         self.cost_average = cost_average #average cost to remove species
         self.cost_variance = cost_variance #variance in cost
-        self.cost_distribution = "LogNormal" #distribution to use (only uniform is currently implemented)
+        self.cost_distribution = "LogNormal" #distribution to use (Uniform or LogNormal)
 
         self.value_average = 1 #value of removing species
         self.value_variance = value_variance #variance in values
-        self.value_distribution = "LogNormal" #distribution to use (only uniform is currently implemented)
+        self.value_distribution = "LogNormal" #distribution to use (Uniform or LogNormal)
 
         self.estimation_variance = estimation_variance #variance in estimating cost & value
 
