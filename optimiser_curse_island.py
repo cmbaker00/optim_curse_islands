@@ -8,7 +8,7 @@ from functools import lru_cache
 
 class IslandInvasives:
     def __init__(self, num_islands, budget = 200., cost_average = 50., cost_variance = 40.,
-                 value_variance = .1, estimation_variance = .2):
+                 value_variance = .1, estimation_variance = .05):
         self.num_islands = num_islands
         self.island_list = list(range(self.num_islands))
 
@@ -163,7 +163,8 @@ class IslandInvasives:
             #Hence, variance must be halved at this calculate -> input variance can be up to 0.5
             a = (1-2*self.estimation_variance)/(4*self.estimation_variance)
             estimates = self.islands*2*np.random.beta(a, a, self.islands.shape)
-            estimates[estimates<0] = 0 #all estimtes must be positive
+            if (estimates <= 0).any():
+                raise ValueError('All value/cost estimates must be positive')
             estimates[2,:] = estimates[1,:]/estimates[0,:] #store a 3rd row, the benefit/cost of each island
             self.estimates = estimates
         return
@@ -400,11 +401,14 @@ class IslandInvasivesEnsemble:
         plt.ylim([0,max_value])
 
 if  __name__ == "__main__":
+    # cost parameters - this produces costs between approx 250k and 1.5mil
+    cost_average = 7e5
+    cost_variance = 1e11
+
     ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,estimation_variance=.05,
-                                       budget=10, cost_average=1, cost_variance=.25)
+                                       budget=5e6, cost_average=cost_average, cost_variance=cost_variance)
     ensemble.generate_ensemble()
-    # ensemble.show_results_plot()
-    print(np.mean(ensemble.ensemble[0].islands[0]))
+    ensemble.show_results_plot()
     # ensemble.save_data()
     # ensemble.save_plot()
 
