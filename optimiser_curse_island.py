@@ -469,6 +469,80 @@ def run_multiple_uncertainty(num_realisations=200,num_islands=50,
 
 
 
+def basic_plots(num_realisations=200,num_islands=50,
+                                       estimation_variance_list = (.02, .01), budget=5e6,
+                                       cost_ave = 7e5, cost_var = 1e11):
+    fname = 'estvar{}{}_num_reps{}_num_isl{}_budget{}_cost{}_costvar{}'.format(estimation_variance_list[0],
+                                                                               estimation_variance_list[-1],
+                                                                               num_realisations,num_islands,
+                                                          budget, cost_ave, cost_var)
+
+    opt_cost_surprise_list = []
+    cb_cost_surprise_list = []
+    rand_cost_surprise_list = []
+    opt_val_surprise_list = []
+    cb_val_surprise_list = []
+    rand_val_surprise_list = []
+    for var in estimation_variance_list:
+        ensemble = IslandInvasivesEnsemble(num_realisations, num_islands,
+                                           estimation_variance=var, budget=budget,
+                                           cost_average=cost_ave, cost_variance=cost_var)
+        ensemble.generate_ensemble()
+        opt_cost_surprise = ensemble.optimal_true_cost - ensemble.optimal_expected_cost
+        cb_cost_surprise = ensemble.costben_true_cost - ensemble.costben_expected_cost
+        rand_cost_surprise = ensemble.random_true_cost - ensemble.random_expected_cost
+
+        opt_val_surprise = ensemble.optimal_true_value - ensemble.optimal_expected_value
+        cb_val_surprise = ensemble.costben_true_value - ensemble.costben_expected_value
+        rand_val_surprise = ensemble.random_true_value - ensemble.random_expected_value
+
+        opt_cost_surprise_list.append([np.mean(opt_cost_surprise)/np.mean(ensemble.optimal_true_cost),
+                                       np.std(opt_cost_surprise)])
+        cb_cost_surprise_list.append([np.mean(cb_cost_surprise)/np.mean(ensemble.costben_true_cost),
+                                      np.std(cb_cost_surprise)])
+        rand_cost_surprise_list.append([np.mean(rand_cost_surprise)/np.mean(ensemble.random_true_cost),
+                                        np.std(rand_cost_surprise)])
+
+        opt_val_surprise_list.append([np.mean(opt_val_surprise)/np.mean(ensemble.optimal_true_value),
+                                       np.std(opt_val_surprise)])
+        cb_val_surprise_list.append([np.mean(cb_val_surprise)/np.mean(ensemble.costben_true_value),
+                                      np.std(cb_val_surprise)])
+        rand_val_surprise_list.append([np.mean(rand_val_surprise)/np.mean(ensemble.random_true_value),
+                                        np.std(rand_val_surprise)])
+
+    opt_cost_surprise_array = np.array(opt_cost_surprise_list)
+    cb_cost_surprise_array = np.array(cb_cost_surprise_list)
+    rand_cost_surprise_array = np.array(rand_cost_surprise_list)
+
+    estimation_variance_list = 100*np.sqrt(estimation_variance_list)
+    plt.plot(estimation_variance_list, 100*opt_cost_surprise_array[:,0])
+    plt.plot(estimation_variance_list, 100*cb_cost_surprise_array[:,0])
+    plt.plot(estimation_variance_list, 100*rand_cost_surprise_array[:,0])
+    plt.legend(['Optimal', 'Cost-benefit', 'Random'])
+    plt.xlabel('Measurement error %')
+    plt.ylabel('% cost surprise')
+
+
+    plt.savefig('results/cost_surprise_{}.png'.format(fname))
+
+    plt.close()
+
+    opt_val_surprise_array = np.array(opt_val_surprise_list)
+    cb_val_surprise_array = np.array(cb_val_surprise_list)
+    rand_val_surprise_array = np.array(rand_val_surprise_list)
+
+    plt.plot(estimation_variance_list, 100*opt_val_surprise_array[:,0])
+    plt.plot(estimation_variance_list, 100*cb_val_surprise_array[:,0])
+    plt.plot(estimation_variance_list, 100*rand_val_surprise_array[:,0])
+    plt.legend(['Optimal', 'Cost-benefit', 'Random'])
+    plt.xlabel('Measurement error %')
+    plt.ylabel('% value surprise')
+
+    plt.savefig('results/value_surprise_{}.png'.format(fname))
+
+    plt.close()
+
+
 if  __name__ == "__main__":
     # cost parameters - this produces costs between approx 250k and 1.5mil
     cost_average = 7e5
@@ -477,7 +551,11 @@ if  __name__ == "__main__":
 
     estimation_variance_list = [.05, .04,.03,.02,.01,.005,.001]
 
-    run_multiple_uncertainty(num_realisations=5000, num_islands=150,
+    # run_multiple_uncertainty(num_realisations=5000, num_islands=150,
+    #                          estimation_variance_list=estimation_variance_list,
+    #                          budget=budget, cost_ave=cost_average, cost_var=cost_variance)
+
+    basic_plots(num_realisations=5000, num_islands=150,
                              estimation_variance_list=estimation_variance_list,
                              budget=budget, cost_ave=cost_average, cost_var=cost_variance)
 
