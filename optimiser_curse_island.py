@@ -285,7 +285,29 @@ class IslandInvasivesEnsemble:
         self.optimal_true_cost = None
         self.optimal_true_value = None
 
+        self.force_run = False
+
     def generate_ensemble(self):
+        if not self.force_run:
+            try:
+                result = pd.read_csv(self.file_save_string())
+                self.analysis_complete = True
+
+                self.random_expected_cost = result['random_expected_cost']
+                self.random_true_cost = result['random_true_cost']
+                self.random_expected_value = result['random_expected_value']
+                self.random_true_value = result['random_true_value']
+                self.costben_expected_cost = result['costben_expected_cost']
+                self.costben_true_cost = result['costben_true_cost']
+                self.costben_expected_value = result['costben_expected_value']
+                self.costben_true_value = result['costben_true_value']
+                self.optimal_expected_cost = result['optimal_expected_cost']
+                self.optimal_true_cost = result['optimal_true_cost']
+                self.optimal_expected_value = result['optimal_expected_value']
+                self.optimal_true_value = result['optimal_true_value']
+                return
+            except:
+                pass
         if self.ensemble is None:
             ensemble = [IslandInvasives(self.num_islands, budget=self.budget,
                                         cost_average=self.cost_average, cost_variance=self.cost_variance,
@@ -372,10 +394,14 @@ class IslandInvasivesEnsemble:
         plt.close()
 
     def save_data(self, fname = None):
+        if self.force_run is False:
+            try:
+                result = pd.read_csv(self.file_save_string())
+                return
+            except:
+                pass
         if not self.analysis_complete:
             self.run_analysis()
-        if fname is None:
-            fname = self.parameter_name()
         data = {'random_expected_cost': self.random_expected_cost,
                 'random_true_cost': self.random_true_cost,
                 'random_expected_value': self.random_expected_value,
@@ -389,7 +415,14 @@ class IslandInvasivesEnsemble:
                 'optimal_expected_value': self.optimal_expected_value,
                 'optimal_true_value': self.optimal_true_value}
         df = pd.DataFrame(data)
-        df.to_csv('results/data_{}.csv'.format(fname))
+        df.to_csv(self.file_save_string(fname))
+
+
+    def file_save_string(self, fname = None):
+        if fname is None:
+            fname = self.parameter_name()
+        return 'results/data_{}.csv'.format(fname)
+
 
     def parameter_name(self):
         return "num_reps{}_num_isl{}_estvar{}_budget{}_cost{}_var{}".format(
@@ -433,7 +466,7 @@ def run_multiple_uncertainty(num_realisations=200,num_islands=50,
         ensemble.generate_ensemble()
         ensemble.save_data()
         ensemble.save_plot()
-    pass
+
 
 
 if  __name__ == "__main__":
