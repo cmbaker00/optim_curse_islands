@@ -543,19 +543,19 @@ def basic_plots(num_realisations=200,num_islands=50,
     plt.close()
 
 
-if  __name__ == "__main__":
+if __name__ == "__main__":
     # cost parameters - this produces costs between approx 250k and 1.5mil
     cost_average = 7e5
     cost_variance = 1e11
     budget = 5e6
-    repeats = 1000
+    repeats = 5000
 
     # estimation_variance_list = [.05, .04,.03,.02,.01,.005,.001]
     estimation_variance_list = list(np.arange(.1,.01,-.01))+list(np.arange(.01,.001,-.001))+[.001]
     estimation_variance_list = np.round(estimation_variance_list, decimals=3)
-    # run_multiple_uncertainty(num_realisations=5000, num_islands=150,
-    #                          estimation_variance_list=estimation_variance_list,
-    #                          budget=budget, cost_ave=cost_average, cost_var=cost_variance)
+    run_multiple_uncertainty(num_realisations=5000, num_islands=150,
+                             estimation_variance_list=estimation_variance_list,
+                             budget=budget, cost_ave=cost_average, cost_var=cost_variance)
 
     basic_plots(num_realisations=repeats, num_islands=150,
                              estimation_variance_list=estimation_variance_list,
