@@ -110,9 +110,9 @@ class IslandInvasives:
             current_best_choice = costben_choice
             current_best_value = self.expected_value(current_best_choice)
 
-            #create a of lists, where each list is the list of all islands without one of the chocies from costben
+            # create a of lists, where each list is the list of all islands without one of the choices from costben
             options_list = [set(self.island_list).difference({island}) for island in costben_choice]
-            #also allow the costben choice as a starting option to imporve on
+            # also allow the costben choice as a starting option to improve on
             options_list.append(costben_choice)
 
             for options in options_list:
@@ -121,18 +121,18 @@ class IslandInvasives:
                 current_choice = []
                 flag = 0
                 while flag == 0:
-                    #check current cost and remaining budget
+                    # check current cost and remaining budget
                     current_expenditure = self.expected_cost(current_choice)
                     remaining_funds = self.budget - current_expenditure
                     try:
-                        #choose the best ben/cost island that is still under budget
+                        # choose the best ben/cost island that is still under budget
                         best_option = np.array(ordered_options_worst_to_best)[
                             self.islands[0, ordered_options_worst_to_best] < remaining_funds][-1]
-                        #add to the current_choice list and remove from the list of options
+                        # add to the current_choice list and remove from the list of options
                         current_choice.append(ordered_options_worst_to_best.pop(ordered_options_worst_to_best.index(best_option)))
-                    except IndexError: #index error when none are under budget - exit loop
+                    except IndexError: # index error when none are under budget - exit loop
                         flag = 1
-                expected_value = self.expected_value(current_choice) #calc the expected value
+                expected_value = self.expected_value(current_choice) # calculate the expected value
                 if expected_value > current_best_value: #store if it is better than any other explored options
                     current_best_value = expected_value
                     current_best_choice = copy.copy(current_choice)
@@ -186,7 +186,7 @@ class IslandInvasives:
                 if len(islands_ranked_good) == 0:
                     flag = 1
                 self.good_choice = good_choice
-        return good_choice
+            return good_choice
         return self.good_choice
 
     # The following four functions return the expected/true value/cost of an input list of islands
@@ -388,13 +388,47 @@ class IslandInvasivesEnsemble:
 
     def run_analysis(self):
         if not self.analysis_complete:
-            self.store_costben_result()
-            self.store_optimal_result()
-            self.store_random_result()
-            self.store_cheap_result()
-            self.store_good_result()
-            self.analysis_complete = True
-        return
+            while self.analysis_complete is False:
+                self.store_costben_result()
+                self.store_optimal_result()
+                self.store_random_result()
+                self.store_cheap_result()
+                self.store_good_result()
+                self.analysis_complete, bad_index = self.check_non_zero_data()
+                if self.analysis_complete:
+                    return
+                else:
+                    for index in list(bad_index):
+                        print("Bad index: {}".format(index))
+                        self.ensemble[index] = IslandInvasives(self.num_islands, budget=self.budget,
+                                                               cost_average=self.cost_average,
+                                                               cost_variance=self.cost_variance,
+                                                               value_variance=self.value_variance,
+                                                               estimation_variance=self.estimation_variance)
+                        self.ensemble[index].run_prioritisation()
+
+    # check that all data is non-zero
+    def check_non_zero_data(self):
+        bad_index = set()
+        data_to_check = [self.random_expected_cost, self.random_expected_value,
+                         self.random_true_cost, self.random_true_value,
+                         self.costben_expected_cost, self.costben_expected_value,
+                         self.costben_true_cost, self.costben_true_value,
+                         self.optimal_expected_cost, self.optimal_expected_value,
+                         self.optimal_true_cost, self.optimal_true_value,
+                         self.cheap_expected_cost, self.cheap_expected_value,
+                         self.cheap_true_cost, self.cheap_true_value,
+                         self.good_expected_cost, self.cheap_expected_value,
+                         self.good_true_cost, self.good_true_value]
+        for data in data_to_check:
+            try:
+                bad_index.add(data.index(0))  # store index of each zero
+            except ValueError: # ignore value errors, as these are when the data is non-zero
+                pass
+        if len(bad_index) == 0:
+            return True, bad_index # with empty bad_index, return true
+        else:
+            return False, bad_index # with bad_index non empty, return false, along with the indices
 
     def store_random_result(self):
         random_choices = [realisation.random_choice for realisation in self.ensemble]
