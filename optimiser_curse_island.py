@@ -3,6 +3,7 @@ import time
 import copy
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 from functools import lru_cache
 
 
@@ -309,7 +310,8 @@ class IslandInvasivesEnsemble:
 
         self.ensemble = None
 
-        np.random.seed(seed)
+        self.seed = seed
+        np.random.seed(self.seed)
 
         self.analysis_complete = False
 
@@ -509,7 +511,7 @@ class IslandInvasivesEnsemble:
         self._create_plot()
         if fname is None:
             fname = self.parameter_name()
-        plt.savefig('results/plot_{}.png'.format(fname))
+        plt.savefig('results/{}/plot_{}.png'.format(self.seed, fname))
         plt.close()
 
     def save_data(self, fname=None):
@@ -547,7 +549,7 @@ class IslandInvasivesEnsemble:
     def file_save_string(self, fname=None):
         if fname is None:
             fname = self.parameter_name()
-        return 'results/data_{}.csv'.format(fname)
+        return 'results/{}/data_{}.csv'.format(self.seed, fname)
 
     def parameter_name(self):
         return "num_reps{}_num_isl{}_estvar{}_budget{}_cost{}_var{}".format(
@@ -581,12 +583,14 @@ def plot_histogram_estimation_variance(var=0.01):
 
 def run_multiple_uncertainty(num_realisations=200, num_islands=50,
                                        estimation_variance_list=(.02, .01), budget=5e6,
-                                       cost_ave=7e5, cost_var=1e11):
+                                       cost_ave=7e5, cost_var=1e11, seed=3784123):
+    if str(seed) not in os.listdir('results'):
+        os.mkdir('results/{}'.format(seed))
     for var in estimation_variance_list:
         print("Running estimation_variance = {}".format(var))
         ensemble = IslandInvasivesEnsemble(num_realisations, num_islands,
                                            estimation_variance=var, budget=budget,
-                                           cost_average=cost_ave, cost_variance=cost_var)
+                                           cost_average=cost_ave, cost_variance=cost_var, seed=seed)
         ensemble.generate_ensemble()
         ensemble.save_data()
         ensemble.save_plot()
@@ -594,7 +598,7 @@ def run_multiple_uncertainty(num_realisations=200, num_islands=50,
 
 def basic_plots(num_realisations=200, num_islands=50,
                 estimation_variance_list=(.02, .01), budget=5e6,
-                cost_ave=7e5, cost_var=1e11):
+                cost_ave=7e5, cost_var=1e11, seed = 3784123):
     fname = 'estvar{}{}_num_reps{}_num_isl{}_budget{}_cost{}_costvar{}'.format(estimation_variance_list[0],
                                                                                estimation_variance_list[-1],
                                                                                num_realisations, num_islands,
@@ -666,7 +670,7 @@ def basic_plots(num_realisations=200, num_islands=50,
     plt.xlabel('Measurement error %')
     plt.ylabel('% cost surprise')
 
-    plt.savefig('results/cost_surprise_{}.png'.format(fname))
+    plt.savefig('results/{}/cost_surprise_{}.png'.format(seed, fname))
 
     plt.close()
 
@@ -685,7 +689,7 @@ def basic_plots(num_realisations=200, num_islands=50,
     plt.xlabel('Measurement error %')
     plt.ylabel('% value surprise')
 
-    plt.savefig('results/value_surprise_{}.png'.format(fname))
+    plt.savefig('results/{}/value_surprise_{}.png'.format(seed, fname))
 
     plt.close()
 
@@ -705,15 +709,16 @@ if __name__ == "__main__":
     estimation_variance_list = [.1] + estimation_variance_list
 
     # estimation_variance_list = [.05]
-
+    seed = 3784123
+    seed = 2489012
     estimation_variance_list = np.round(estimation_variance_list, decimals=3)
     run_multiple_uncertainty(num_realisations=repeats, num_islands=150,
                              estimation_variance_list=estimation_variance_list,
-                             budget=budget, cost_ave=cost_average, cost_var=cost_variance)
+                             budget=budget, cost_ave=cost_average, cost_var=cost_variance, seed=seed)
 
     basic_plots(num_realisations=repeats, num_islands=150,
                 estimation_variance_list=estimation_variance_list,
-                budget=budget, cost_ave=cost_average, cost_var=cost_variance)
+                budget=budget, cost_ave=cost_average, cost_var=cost_variance, seed=seed)
 
     #
     # estimation_variance = 0.02
