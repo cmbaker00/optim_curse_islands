@@ -1,5 +1,4 @@
 import numpy as np
-import time
 import copy
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -23,7 +22,7 @@ class IslandInvasives:
 
         self.estimation_variance = estimation_variance  # variance in estimating cost & value
 
-        self.budget = budget  # total budget
+        self.budget = budget  # total project_budget
 
         self.islands = None  # true values about islands
         self.estimates = None   # estimated values
@@ -53,7 +52,7 @@ class IslandInvasives:
             self.islands = np.array([island_costs, island_values, island_values/island_costs])
         return
 
-    # choose a random set of islands within budget
+    # choose a random set of islands within project_budget
     def choose_random(self):
         if self.random_choice is None:
             flag = 0
@@ -63,7 +62,7 @@ class IslandInvasives:
                 # add a random island to the choice list and remove it from the local island list
                 random_choice.append(islands.pop(islands.index(np.random.choice(islands))))
 
-                current_costs = self.estimates[0,random_choice]
+                current_costs = self.estimates[0, random_choice]
                 current_total_cost = np.sum(current_costs)
 
                 if current_total_cost > self.budget:  # check is overbudget
@@ -84,14 +83,14 @@ class IslandInvasives:
             islands_bencost = copy.copy(self.estimates[2, :])  # local list of benefit/cost for ech island
             islands_bencost_array = np.array([islands, islands_bencost])  # join them together
             # sort by benefit/cost
-            islands_bencost_array = islands_bencost_array[:,islands_bencost_array[1, :].argsort()]
+            islands_bencost_array = islands_bencost_array[:, islands_bencost_array[1, :].argsort()]
 
             flag = 0
             # return a list of islands ranked from worst to best
             islands_ranked_worst_to_best = [int(val) for val in islands_bencost_array[0, :]]
             self.island_rankings = copy.copy(islands_ranked_worst_to_best)  # save the list for use elsewhere
             costben_choice = []
-            # as per random choice, but always adding the next best island until the budget is exhausted
+            # as per random choice, but always adding the next best island until the project_budget is exhausted
             while flag == 0:
                 costben_choice.append(islands_ranked_worst_to_best.pop(-1))
                 current_costs = self.estimates[0, costben_choice]
@@ -107,7 +106,7 @@ class IslandInvasives:
 
     def choose_optimal(self):
         if self.optimal_choice is None:
-            costben_choice = self.choose_costben() # start with the costben solution and explore 'nearby' options
+            costben_choice = self.choose_costben()  # start with the costben solution and explore 'nearby' options
             current_best_choice = costben_choice
             current_best_value = self.expected_value(current_best_choice)
 
@@ -122,19 +121,20 @@ class IslandInvasives:
                 current_choice = []
                 flag = 0
                 while flag == 0:
-                    # check current cost and remaining budget
+                    # check current cost and remaining project_budget
                     current_expenditure = self.expected_cost(current_choice)
                     remaining_funds = self.budget - current_expenditure
                     try:
-                        # choose the best ben/cost island that is still under budget
+                        # choose the best ben/cost island that is still under project_budget
                         best_option = np.array(ordered_options_worst_to_best)[
                             self.islands[0, ordered_options_worst_to_best] < remaining_funds][-1]
                         # add to the current_choice list and remove from the list of options
-                        current_choice.append(ordered_options_worst_to_best.pop(ordered_options_worst_to_best.index(best_option)))
-                    except IndexError: # index error when none are under budget - exit loop
+                        current_choice.append(ordered_options_worst_to_best.pop(
+                            ordered_options_worst_to_best.index(best_option)))
+                    except IndexError:  # index error when none are under project_budget - exit loop
                         flag = 1
-                expected_value = self.expected_value(current_choice) # calculate the expected value
-                if expected_value > current_best_value: #store if it is better than any other explored options
+                expected_value = self.expected_value(current_choice)  # calculate the expected value
+                if expected_value > current_best_value:  # store if it is better than any other explored options
                     current_best_value = expected_value
                     current_best_choice = copy.copy(current_choice)
 
@@ -142,7 +142,7 @@ class IslandInvasives:
             return current_best_choice
         return self.optimal_choice
 
-    # order by cheapest, fill up budget
+    # order by cheapest, fill up project_budget
     def choose_cheap(self):
         if self.cheap_choice is None:
             islands = copy.copy(self.island_list)  # local list of islands
@@ -166,7 +166,7 @@ class IslandInvasives:
             return cheap_choice
         return self.cheap_choice
 
-    # order by best benefit, fill up budget
+    # order by best benefit, fill up project_budget
     def choose_good(self):
         if self.good_choice is None:
             islands = copy.copy(self.island_list)
@@ -297,8 +297,8 @@ class IslandInvasives:
 class IslandInvasivesEnsemble:
     def __init__(self, num_realisations, num_islands, budget=200.,
                  cost_average=50., cost_variance=40.,
-                 value_variance=.1, estimation_variance = .2,
-                 seed = 3784123):
+                 value_variance=.1, estimation_variance=.2,
+                 seed=3784123):
 
         self.num_realisations = num_realisations
         self.num_islands = num_islands
@@ -425,12 +425,12 @@ class IslandInvasivesEnsemble:
         for data in data_to_check:
             try:
                 bad_index.add(data.index(0))  # store index of each zero
-            except ValueError: # ignore value errors, as these are when the data is non-zero
+            except ValueError:  # ignore value errors, as these are when the data is non-zero
                 pass
         if len(bad_index) == 0:
-            return True, bad_index # with empty bad_index, return true
+            return True, bad_index  # with empty bad_index, return true
         else:
-            return False, bad_index # with bad_index non empty, return false, along with the indices
+            return False, bad_index  # with bad_index non empty, return false, along with the indices
 
     def store_random_result(self):
         random_choices = [realisation.random_choice for realisation in self.ensemble]
@@ -454,7 +454,8 @@ class IslandInvasivesEnsemble:
 
     def store_good_result(self):
         good_choice = [realisation.good_choice for realisation in self.ensemble]
-        self.good_expected_cost, self.good_expected_value, self.good_true_cost, self.good_true_value = self.return_cost_value(good_choice)
+        self.good_expected_cost, self.good_expected_value, self.good_true_cost, self.good_true_value = \
+            self.return_cost_value(good_choice)
 
     def return_cost_value(self, choice):
         expected_cost = [r.expected_cost(c) for r, c in zip(self.ensemble, choice)]
@@ -517,7 +518,7 @@ class IslandInvasivesEnsemble:
     def save_data(self, fname=None):
         if self.force_run is False:
             try:
-                result = pd.read_csv(self.file_save_string())
+                pd.read_csv(self.file_save_string())
                 return
             except:
                 pass
@@ -582,11 +583,11 @@ def plot_histogram_estimation_variance(var=0.01):
 
 
 def run_multiple_uncertainty(num_realisations=200, num_islands=50,
-                                       estimation_variance_list=(.02, .01), budget=5e6,
-                                       cost_ave=7e5, cost_var=1e11, seed=3784123):
+                             estimation_variance_list_input=(.02, .01), budget=5e6,
+                             cost_ave=7e5, cost_var=1e11, seed=3784123):
     if str(seed) not in os.listdir('results'):
         os.mkdir('results/{}'.format(seed))
-    for var in estimation_variance_list:
+    for var in estimation_variance_list_input:
         print("Running estimation_variance = {}".format(var))
         ensemble = IslandInvasivesEnsemble(num_realisations, num_islands,
                                            estimation_variance=var, budget=budget,
@@ -597,10 +598,10 @@ def run_multiple_uncertainty(num_realisations=200, num_islands=50,
 
 
 def basic_plots(num_realisations=200, num_islands=50,
-                estimation_variance_list=(.02, .01), budget=5e6,
+                estimation_variance_list_input=(.02, .01), budget=5e6,
                 cost_ave=7e5, cost_var=1e11, seed = 3784123):
-    fname = 'estvar{}{}_num_reps{}_num_isl{}_budget{}_cost{}_costvar{}'.format(estimation_variance_list[0],
-                                                                               estimation_variance_list[-1],
+    fname = 'estvar{}{}_num_reps{}_num_isl{}_budget{}_cost{}_costvar{}'.format(estimation_variance_list_input[0],
+                                                                               estimation_variance_list_input[-1],
                                                                                num_realisations, num_islands,
                                                                                budget, cost_ave, cost_var)
     opt_cost_surprise_list = []
@@ -615,7 +616,7 @@ def basic_plots(num_realisations=200, num_islands=50,
     cheap_val_surprise_list = []
     good_val_surprise_list = []
 
-    for var in estimation_variance_list:
+    for var in estimation_variance_list_input:
         ensemble = IslandInvasivesEnsemble(num_realisations, num_islands,
                                            estimation_variance=var, budget=budget,
                                            cost_average=cost_ave, cost_variance=cost_var)
@@ -660,12 +661,12 @@ def basic_plots(num_realisations=200, num_islands=50,
     cheap_cost_surprise_array = np.array(cheap_cost_surprise_list)
     good_cost_surprise_array = np.array(good_cost_surprise_list)
 
-    estimation_variance_list = 100*np.sqrt(estimation_variance_list)
-    plt.plot(estimation_variance_list, 100*opt_cost_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*cb_cost_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*rand_cost_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*cheap_cost_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*good_cost_surprise_array[:, 0])
+    estimation_variance_list_input = 100 * np.sqrt(estimation_variance_list_input)
+    plt.plot(estimation_variance_list_input, 100 * opt_cost_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * cb_cost_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * rand_cost_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * cheap_cost_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * good_cost_surprise_array[:, 0])
     plt.legend(['Optimal', 'Cost-benefit', 'Random', 'Cheap', 'Good'])
     plt.xlabel('Measurement error %')
     plt.ylabel('% cost surprise')
@@ -680,11 +681,11 @@ def basic_plots(num_realisations=200, num_islands=50,
     cheap_val_surprise_array = np.array(cheap_val_surprise_list)
     good_val_surprise_array = np.array(good_val_surprise_list)
 
-    plt.plot(estimation_variance_list, 100*opt_val_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*cb_val_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*rand_val_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*cheap_val_surprise_array[:, 0])
-    plt.plot(estimation_variance_list, 100*good_val_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * opt_val_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * cb_val_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * rand_val_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * cheap_val_surprise_array[:, 0])
+    plt.plot(estimation_variance_list_input, 100 * good_val_surprise_array[:, 0])
     plt.legend(['Optimal', 'Cost-benefit', 'Random', 'Cheap', 'Good'])
     plt.xlabel('Measurement error %')
     plt.ylabel('% value surprise')
@@ -696,56 +697,30 @@ def basic_plots(num_realisations=200, num_islands=50,
 
 if __name__ == "__main__":
     # cost parameters - this produces costs between approx 250k and 1.5mil
-    cost_average = 7e5
-    cost_variance = 1e11
-    budget = 5e6
+    project_cost_average = 7e5
+    project_cost_variance = 1e11
+    project_budget = 5e6
     repeats = 1000
 
-    # estimation_variance_list = [.05, .04,.03,.02,.01,.005,.001]
-    # estimation_variance_list = list(np.arange(.1,.01,-.01))+list(np.arange(.01,.001,-.001))+[.001]
+    estimation_variance_list = list(np.arange(.005, .1, .005)) + [.1]
 
-    estimation_variance_list = list(np.arange(.005, .1, .005))
-    estimation_variance_list.reverse()
-    estimation_variance_list = [.1] + estimation_variance_list
+    # set the simulation_seed - result plots are using 3784123,
+    # the other one is to check the results aren't specific to the simulation_seed choice
+    simulation_seed = 3784123
+    # simulation_seed = 2489012
 
-    # estimation_variance_list = [.05]
-    seed = 3784123
-    seed = 2489012
+    # The following line makes the list clean (ie 0.09 instead of 0.09000000000000001) for file naming purposes
     estimation_variance_list = np.round(estimation_variance_list, decimals=3)
+
+    # run the simulations across the range of estimation variances
     run_multiple_uncertainty(num_realisations=repeats, num_islands=150,
-                             estimation_variance_list=estimation_variance_list,
-                             budget=budget, cost_ave=cost_average, cost_var=cost_variance, seed=seed)
+                             estimation_variance_list_input=estimation_variance_list,
+                             budget=project_budget, cost_ave=project_cost_average, cost_var=project_cost_variance,
+                             seed=simulation_seed)
 
+    # create and save basic plots of the simulation data
+    # these are not the final plots used in the paper
     basic_plots(num_realisations=repeats, num_islands=150,
-                estimation_variance_list=estimation_variance_list,
-                budget=budget, cost_ave=cost_average, cost_var=cost_variance, seed=seed)
-
-    #
-    # estimation_variance = 0.02
-    # plot_histogram_estimation_variance(estimation_variance)
-    #
-    # ensemble = IslandInvasivesEnsemble(num_realisations=200,num_islands=50,
-    #                                    estimation_variance=estimation_variance, budget=5e6,
-    #                                    cost_average=cost_average, cost_variance=cost_variance)
-    # ensemble.generate_ensemble()
-    # ensemble.show_results_plot()
-    # ensemble.save_data()
-    # ensemble.save_plot()
-
-    # tstart = time.time()
-    # for i in range(100):
-    #     sys = IslandInvasives(400, budget=500)
-    #     # sys.generate_islands()
-    #     # sys.generate_estimates()
-    #     sys.choose_optimal()
-    #     rand_choice = sys.choose_random()
-    #     costben_choice = sys.choose_costben()
-    #     optimal_choice = sys.choose_optimal()
-    #     # print(sys.expected_cost(rand_choice))
-    #     # print(sys.true_cost(rand_choice))
-    # print(sys.expected_cost(costben_choice),sys.true_cost(costben_choice))
-    # print(sys.expected_value(costben_choice),sys.true_value(costben_choice))
-    # print(sys.expected_cost(optimal_choice),sys.true_cost(optimal_choice))
-    # print(sys.expected_value(optimal_choice),sys.true_value(optimal_choice))
-    # tend = time.time()
-    # print(tend-tstart)
+                estimation_variance_list_input=estimation_variance_list,
+                budget=project_budget, cost_ave=project_cost_average, cost_var=project_cost_variance,
+                seed=simulation_seed)
