@@ -52,8 +52,94 @@ class IslandInvasives:
             self.islands = np.array([island_costs, island_values, island_values/island_costs])
         return
 
-    # choose a random set of islands within project_budget
-    def choose_random(self):
+    # The following four functions return the expected/true value/cost of an input list of islands
+    def expected_value(self, choice):
+        return np.sum(self.estimates[1, choice])
+
+    def expected_cost(self, choice):
+        return np.sum(self.estimates[0, choice])
+
+    def true_value(self, choice):
+        return np.sum(self.islands[1, choice])
+
+    def true_cost(self, choice):
+        return np.sum(self.islands[0, choice])
+
+    def generate_estimates(self):  # generate and store estimates of cost and value
+        if self.estimates is None:
+            if self.islands is None:
+                raise RuntimeError("generate_islands must be called before generate estimates")
+
+            estimates = self.islands*self.beta_estimate_draws(self.islands.shape)
+            if (estimates <= 0).any():
+                raise ValueError('All value/cost estimates must be positive')
+            estimates[2, :] = estimates[1, :]/estimates[0, :]  # store a 3rd row, the benefit/cost of each island
+            self.estimates = estimates
+        return
+
+    def beta_estimate_draws(self, num):
+        # generate estimates with a beta distribution with parameters Beta(a,a)
+        # Variance of beta distribution is 1/(4+8a), so a = (1-4var)/(8var). Variance must be less than 0.25
+        # However, the beta distribution is 'doubled' to have support [0,2], so that also doubles the variances
+        # Hence, variance must be halved at this calculate -> input variance can be up to 0.5
+        a = self.beta_parameters(self.estimation_variance)
+        return 2*np.random.beta(a, a, num)
+
+    @staticmethod
+    @lru_cache()
+    def beta_parameters(var):
+        if var*2 >= 1:
+            raise ValueError("Variance is too large for the beta distribution")
+        return (1-2*var)/(4*var)
+
+    def generate_values(self):
+        if self.value_distribution is 'Uniform':
+            distribution = self.generate_uniform
+        elif self.value_distribution is 'LogNormal':
+            distribution = self.generate_lognormal
+        else:
+            raise Exception('Unknown option for value distribution: {}'.format(self.value_distribution))
+        return distribution(self.num_islands, self.value_average, self.value_variance)
+
+    def generate_costs(self):
+        if self.cost_distribution is 'Uniform':
+            distribution = self.generate_uniform
+        elif self.cost_distribution is 'LogNormal':
+            distribution = self.generate_lognormal
+        else:
+            raise Exception('Unknown option for value distribution: {}'.format(self.value_distribution))
+        return distribution(self.num_islands, self.cost_average, self.cost_variance)
+
+    @staticmethod
+    def generate_uniform(num, mean, variance):
+        a = mean - np.sqrt(12 * variance)/2
+        b = mean + np.sqrt(12 * variance)/2
+        return np.random.uniform(a, b, num)
+
+    def generate_lognormal(self, num, mean, variance):
+        mu, sigma = self.lognormal_parameters(mean, variance)
+        return np.exp(np.random.normal(mu, sigma, num))
+
+    @staticmethod
+    @lru_cache()
+    def lognormal_parameters(mean, variance):
+        # I couldn't find an equation for mu and sigma as a function of
+        # mean and variance for the lognormal distribution
+        # this uses fixed point iteration
+        mu = np.log(mean)  # initial guess of mu
+        sigma = None
+        flag = 0
+        while flag == 0:
+            sigma = np.sqrt(np.log(0.5 * (1 + np.sqrt(1 + 4 * variance * np.exp(-2 * mu)))))  # true sigma, given  mu
+            prev_mu = copy.copy(mu)
+            mu = np.log(mean) - (sigma ** 2) / 2  # update mu.
+            if np.abs(prev_mu - mu) < .001:
+                flag = 1
+            if np.abs(mu) > 1e6:
+                raise Exception
+        return mu, sigma
+
+    def choose_random(self):  # choose a random set of islands within project_budget
         if self.random_choice is None:
             flag = 0
             islands = copy.copy(self.island_list)  # create a local island list
@@ -76,8 +162,7 @@ class IslandInvasives:
 
         return self.random_choice
 
-    # choose islands by cost vs benefit
-    def choose_costben(self):
+    def choose_costben(self):  # choose islands by cost vs benefit
         if self.costben_choice is None:
             islands = copy.copy(self.island_list)  # local island list
             islands_bencost = copy.copy(self.estimates[2, :])  # local list of benefit/cost for ech island
@@ -142,8 +227,7 @@ class IslandInvasives:
             return current_best_choice
         return self.optimal_choice
 
-    # order by cheapest, fill up project_budget
-    def choose_cheap(self):
+    def choose_cheap(self):  # order by cheapest, fill up project_budget
         if self.cheap_choice is None:
             islands = copy.copy(self.island_list)  # local list of islands
             islands_costs = copy.copy(self.estimates[0, :])  # local list of island costs
@@ -166,8 +250,7 @@ class IslandInvasives:
             return cheap_choice
         return self.cheap_choice
 
-    # order by best benefit, fill up project_budget
-    def choose_good(self):
+    def choose_good(self):  # order by best benefit, fill up project_budget
         if self.good_choice is None:
             islands = copy.copy(self.island_list)
             islands_benefit = copy.copy(self.estimates[1, :])
@@ -189,94 +272,6 @@ class IslandInvasives:
                 self.good_choice = good_choice
             return good_choice
         return self.good_choice
-
-    # The following four functions return the expected/true value/cost of an input list of islands
-    def expected_value(self, choice):
-        return np.sum(self.estimates[1, choice])
-
-    def expected_cost(self, choice):
-        return np.sum(self.estimates[0, choice])
-
-    def true_value(self, choice):
-        return np.sum(self.islands[1, choice])
-
-    def true_cost(self, choice):
-        return np.sum(self.islands[0, choice])
-
-    # generate and store estimates of cost and value
-    def generate_estimates(self):
-        if self.estimates is None:
-            if self.islands is None:
-                raise RuntimeError("generate_islands must be called before generate estimates")
-
-            estimates = self.islands*self.beta_estimate_draws(self.islands.shape)
-            if (estimates <= 0).any():
-                raise ValueError('All value/cost estimates must be positive')
-            estimates[2, :] = estimates[1, :]/estimates[0, :]  # store a 3rd row, the benefit/cost of each island
-            self.estimates = estimates
-        return
-
-    # generate estimates with a beta distribution with parameters Beta(a,a)
-    # Variance of beta distribution is 1/(4+8a), so a = (1-4var)/(8var). Variance must be less than 0.25
-    # However, the beta distribution is 'doubled' to have support [0,2], so that also doubles the variances
-    # Hence, variance must be halved at this calculate -> input variance can be up to 0.5
-    def beta_estimate_draws(self, num):
-        a = self.beta_parameters(self.estimation_variance)
-        return 2*np.random.beta(a, a, num)
-
-    @staticmethod
-    @lru_cache()
-    def beta_parameters(var):
-        if var*2 >= 1:
-            raise ValueError("Variance is too large for the beta distribution")
-        return (1-2*var)/(4*var)
-
-    def generate_values(self):
-        if self.value_distribution is 'Uniform':
-            distribution = self.generate_uniform
-        elif self.value_distribution is 'LogNormal':
-            distribution = self.generate_lognormal
-        else:
-            raise Exception('Unknown option for value distribution: {}'.format(self.value_distribution))
-        return distribution(self.num_islands, self.value_average, self.value_variance)
-
-    def generate_costs(self):
-        if self.cost_distribution is 'Uniform':
-            distribution = self.generate_uniform
-        elif self.cost_distribution is 'LogNormal':
-            distribution = self.generate_lognormal
-        else:
-            raise Exception('Unknown option for value distribution: {}'.format(self.value_distribution))
-        return distribution(self.num_islands, self.cost_average, self.cost_variance)
-
-    @staticmethod
-    def generate_uniform(num, mean, variance):
-        a = mean - np.sqrt(12 * variance)/2
-        b = mean + np.sqrt(12 * variance)/2
-        return np.random.uniform(a, b, num)
-
-    def generate_lognormal(self, num, mean, variance):
-        mu, sigma = self.lognormal_parameters(mean, variance)
-        return np.exp(np.random.normal(mu, sigma, num))
-
-    @staticmethod
-    @lru_cache()
-    def lognormal_parameters(mean, variance):
-        # I couldn't find an equation for mu and sigma as a function of
-        # mean and variance for the lognormal distribution
-        # this uses fixed point iteration
-        mu = np.log(mean)  # initial guess of mu
-        sigma = None
-        flag = 0
-        while flag == 0:
-            sigma = np.sqrt(np.log(0.5 * (1 + np.sqrt(1 + 4 * variance * np.exp(-2 * mu)))))  # true sigma, given  mu
-            prev_mu = copy.copy(mu)
-            mu = np.log(mean) - (sigma ** 2) / 2  # update mu.
-            if np.abs(prev_mu - mu) < .001:
-                flag = 1
-            if np.abs(mu) > 1e6:
-                raise Exception
-        return mu, sigma
 
     def __setattr__(self, key, value):
         if key is 'num_islands':
